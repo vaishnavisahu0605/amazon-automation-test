@@ -1,0 +1,21 @@
+{
+  "name": "amazon-device-tests",
+  "version": "1.0.0",
+  "description": "Automated tests for checking device prices on Amazon",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "cucumber-js",
+    "parallel": "node parallel_runner.js"
+  },
+  "author": "Vaishnavi Sahu",
+  "license": "ISC",
+  "dependencies": {
+    "chromedriver": "^134.0.0",
+    "selenium-webdriver": "^4.31.0",
+    "webdriver": "^9.12.5"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.2.0"
+  }
+}

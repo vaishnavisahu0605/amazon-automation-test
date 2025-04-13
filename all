@@ -1,0 +1,278 @@
+// features/amazon_price_check.feature
+Feature: Amazon Device Price Check
+  As an online shopper
+  I want to check prices of mobile devices on Amazon
+  So that I can make informed purchasing decisions
+
+  @iphone
+  Scenario: Check iPhone price on Amazon
+    Given I am on the Amazon website
+    When I search for "iPhone"
+    And I select the first iPhone from search results
+    Then I should be able to retrieve and print the price
+    And I attempt to add the iPhone to cart and handle sign-in prompt
+
+  @galaxy
+  Scenario: Check Samsung Galaxy price on Amazon
+    Given I am on the Amazon website
+    When I search for "Samsung Galaxy"
+    And I select the first Galaxy device from search results
+    Then I should be able to retrieve and print the price
+    And I attempt to add the Galaxy device to cart and handle sign-in prompt
+
+// step_definitions/amazon_steps.js
+import { Given, When, Then, setDefaultTimeout } from '@cucumber/cucumber';
+import { Builder, By, Key, until } from 'selenium-webdriver';
+import assert from 'assert';
+
+// Increase timeout for Selenium operations
+setDefaultTimeout(60 * 1000);
+
+// Store device information
+let deviceInfo = {
+  name: '',
+  price: '',
+  url: ''
+};
+
+Given('I am on the Amazon website', async function() {
+  // Initialize the WebDriver for Chrome browser
+  this.driver = await new Builder().forBrowser('chrome').build();
+  
+  // Maximize the browser window for better visibility
+  await this.driver.manage().window().maximize();
+  
+  // Navigate to Amazon's homepage
+  await this.driver.get('https://www.amazon.com');
+  console.log('Successfully navigated to Amazon website');
+});
+
+When('I search for {string}', async function(searchTerm) {
+  console.log(`Searching for: ${searchTerm}`);
+  
+  // Find the search box element by its ID
+  const searchBox = await this.driver.findElement(By.id('twotabsearchtextbox'));
+  
+  // Clear any existing text in the search box
+  await searchBox.clear();
+  
+  // Enter the search term and press Enter
+  await searchBox.sendKeys(searchTerm, Key.RETURN);
+  
+  // Wait for search results to load by looking for result items
+  await this.driver.wait(until.elementLocated(By.css('.s-result-item')), 10000);
+  console.log('Search results loaded successfully');
+});
+
+When('I select the first iPhone from search results', async function() {
+  console.log('Selecting first iPhone from search results');
+  
+  // Find and select the first non-sponsored search result
+  const firstResult = await this.driver.findElement(By.css('.s-result-item:not(.AdHolder) .a-link-normal.s-no-outline'));
+  
+  // Get the product name for reference
+  const productTitle = await firstResult.findElement(By.xpath('./ancestor::div[contains(@class, "s-result-item")]//h2')).getText();
+  deviceInfo.name = productTitle;
+  console.log(`Selected product: ${deviceInfo.name}`);
+  
+  // Click on the product link to open its details page
+  await firstResult.click();
+  
+  // Wait for product page to load by looking for the product title
+  await this.driver.wait(until.elementLocated(By.id('productTitle')), 10000);
+  
+  // Store the current URL for reference
+  deviceInfo.url = await this.driver.getCurrentUrl();
+  console.log(`Product page loaded: ${deviceInfo.url}`);
+});
+
+When('I select the first Galaxy device from search results', async function() {
+  console.log('Selecting first Galaxy device from search results');
+  
+  // Find and select the first non-sponsored search result
+  const firstResult = await this.driver.findElement(By.css('.s-result-item:not(.AdHolder) .a-link-normal.s-no-outline'));
+  
+  // Get the product name for reference
+  const productTitle = await firstResult.findElement(By.xpath('./ancestor::div[contains(@class, "s-result-item")]//h2')).getText();
+  deviceInfo.name = productTitle;
+  console.log(`Selected product: ${deviceInfo.name}`);
+  
+  // Click on the product link to open its details page
+  await firstResult.click();
+  
+  // Wait for product page to load by looking for the product title
+  await this.driver.wait(until.elementLocated(By.id('productTitle')), 10000);
+  
+  // Store the current URL for reference
+  deviceInfo.url = await this.driver.getCurrentUrl();
+  console.log(`Product page loaded: ${deviceInfo.url}`);
+});
+
+Then('I should be able to retrieve and print the price', async function() {
+  console.log('Retrieving product price');
+  
+  try {
+    // Look for the price on the product page (try multiple selectors as Amazon's layout can vary)
+    let priceElement;
+    
+    try {
+      // Try first price selector (typical for most products)
+      priceElement = await this.driver.findElement(By.css('#priceblock_ourprice, #priceblock_dealprice, .a-price .a-offscreen'));
+    } catch (e) {
+      // Fallback to a broader price selector if the specific ones aren't found
+      priceElement = await this.driver.findElement(By.css('.a-price .a-offscreen, .a-color-price'));
+    }
+    
+    // Extract the price text
+    deviceInfo.price = await priceElement.getAttribute('textContent') || await priceElement.getText();
+    
+    // Print the device information
+    console.log('Product information retrieved:');
+    console.log(`Device: ${deviceInfo.name}`);
+    console.log(`Price: ${deviceInfo.price}`);
+    console.log(`URL: ${deviceInfo.url}`);
+    
+    // Assert that we got a price to ensure test validity
+    assert(deviceInfo.price && deviceInfo.price.length > 0, 'Price should be retrieved');
+  } catch (error) {
+    console.error('Error retrieving price:', error);
+    throw error;
+  }
+});
+
+Then('I attempt to add the iPhone to cart and handle sign-in prompt', async function() {
+  await attemptAddToCartAndHandleSignIn(this.driver);
+});
+
+Then('I attempt to add the Galaxy device to cart and handle sign-in prompt', async function() {
+  await attemptAddToCartAndHandleSignIn(this.driver);
+});
+
+// Helper function to add item to cart and handle sign-in prompt
+async function attemptAddToCartAndHandleSignIn(driver) {
+  console.log('Attempting to add product to cart');
+  
+  try {
+    // Look for the standard Add to Cart button
+    const addToCartButton = await driver.findElement(By.id('add-to-cart-button'));
+    console.log('Found Add to Cart button');
+    
+    // Click the Add to Cart button
+    await addToCartButton.click();
+    console.log('Clicked Add to Cart button');
+    
+    // Wait for either the cart confirmation or sign-in prompt
+    await driver.wait(until.elementLocated(By.css('#sw-atc-confirmation, #nav-signin-tooltip, #nav-al-signin, #nav-link-accountList')), 10000);
+    
+    // Check if there's a sign-in prompt
+    try {
+      const signInElement = await driver.findElement(By.css('#nav-signin-tooltip, #nav-al-signin, #nav-link-accountList'));
+      console.log('Sign-in prompt detected. In a real test, would handle login here.');
+      
+      // In a real test, you would handle login by:
+      // 1. Click on sign-in button
+      // 2. Enter test credentials
+      // 3. Submit login form
+      // Not implemented here as it requires real credentials
+    } catch (e) {
+      // If no sign-in prompt, check if item was added to cart
+      try {
+        const confirmation = await driver.findElement(By.css('#sw-atc-confirmation, #attach-accessory-pane'));
+        console.log('Item was added to temporary cart without sign-in');
+      } catch (e2) {
+        console.log('Unable to confirm if item was added to cart');
+      }
+    }
+  } catch (error) {
+    console.log('Error during add to cart attempt:', error.message);
+    console.log('This is expected behavior as Amazon may require login');
+  } finally {
+    // Close the browser in the last step
+    await driver.quit();
+    console.log('Test completed, browser closed');
+  }
+}
+
+// support/world.js
+import { setWorldConstructor } from '@cucumber/cucumber';
+
+class CustomWorld {
+  constructor() {
+    this.driver = null;
+  }
+}
+
+setWorldConstructor(CustomWorld);
+
+// parallel_runner.js
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Function to execute cucumber test with specific tag
+function runTest(tag) {
+  console.log(`Starting test with tag: ${tag}`);
+  
+  // Construct path to cucumber-js executable
+  const cucumberPath = path.join(__dirname, 'node_modules', '.bin', 'cucumber-js');
+  
+  // Set up arguments for cucumber command
+  const args = ['--tags', `@${tag}`, '--format', 'progress'];
+  
+  // Spawn a child process to run the test
+  const process = spawn(cucumberPath, args, { stdio: 'inherit' });
+  
+  // Handle process completion events
+  process.on('close', (code) => {
+    if (code === 0) {
+      console.log(`Test with tag ${tag} completed successfully`);
+    } else {
+      console.error(`Test with tag ${tag} failed with code ${code}`);
+    }
+  });
+  
+  return process;
+}
+
+// Main execution - Run tests in parallel
+console.log('Starting parallel test execution...');
+
+// Start both test processes
+const iphoneTest = runTest('iphone');
+const galaxyTest = runTest('galaxy');
+
+// Wait for both tests to complete using promises
+Promise.all([
+  new Promise(resolve => iphoneTest.on('close', resolve)),
+  new Promise(resolve => galaxyTest.on('close', resolve))
+]).then(() => {
+  console.log('All tests have completed');
+});
+
+// package.json
+{
+  "name": "amazon-device-tests",
+  "version": "1.0.0",
+  "description": "Automated tests for checking device prices on Amazon",
+  "main": "parallel_runner.js",
+  "type": "module",
+  "scripts": {
+    "test": "cucumber-js",
+    "parallel": "node parallel_runner.js"
+  },
+  "dependencies": {
+    "@cucumber/cucumber": "^8.0.0",
+    "selenium-webdriver": "^4.8.0"
+  }
+}
+
+// cucumber.js
+export default {
+  import: ['support/*.js', 'step_definitions/*.js'],
+  requireModule: ['esm'],
+  format: ['progress', 'html:cucumber-report.html']
+};
