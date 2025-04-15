@@ -59,6 +59,7 @@ npm install
 ```
 
 ```bash
+npm run parallel
 
 ```
 
